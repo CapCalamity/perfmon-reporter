@@ -8,12 +8,15 @@ import urllib.parse
 import threading
 from subprocess import call
 from os import path
+from curses import wrapper
 
 class SysReporter:
     def __init__(self):
         self.prev_info = {}
+        self.stdsceen = None
 
-    def start(self):
+    def start(self, stdscreen):
+        self.screen = stdscreen
         self.send_system_info()
 
     def gather_system_info(self):
@@ -73,34 +76,40 @@ class SysReporter:
         return temp
   
     def send_system_info(self):
-        # schedule the next interval immediately
-        threading.Timer(1.0, self.send_system_info).start()
-
-        uuid_file = '.perfmon_id'
-        uuid = ''
-        if not path.isfile(uuid_file):
-            call(['cat', '/proc/sys/kernel/random/uuid > ' + uuid_file])
-      
-        if path.isfile(uuid_file):
-            with open(uuid_file, 'r') as file:
-                uuid = file.read().strip()
-        else:
-            return
-      
-        data = {
-            'info': json.dumps(self.gather_system_info()),
-            'uuid': uuid
-        }
-      
-        headers = { 'Content-Type': 'application/x-www-form-urlencoded' }
-        
-        r = requests.post('http://localhost:8000/record', data=urllib.parse.urlencode(data), headers=headers)
-        if r.status_code != 200:
-            print(r.status_code, r.reason, r.text)
+        try:
+            # schedule the next interval immediately
+            threading.Timer(1.0, self.send_system_info).start()
+    
+            uuid_file = '.perfmon_id'
+            uuid = ''
+            if not path.isfile(uuid_file):
+                call(['cat', '/proc/sys/kernel/random/uuid > ' + uuid_file])
+          
+            if path.isfile(uuid_file):
+                with open(uuid_file, 'r') as file:
+                    uuid = file.read().strip()
+            else:
+                return
+          
+            data = {
+                'info': json.dumps(self.gather_system_info()),
+                'uuid': uuid
+            }
+          
+            headers = { 'Content-Type': 'application/x-www-form-urlencoded' }
+            
+            r = requests.post('http://localhost:8000/record', data=urllib.parse.urlencode(data), headers=headers)
+            if r.status_code != 200:
+                print(r.status_code, r.reason, r.text)
+        except:
+            sys.exit()
 
 # program start
+
 # gather system information with psutils, pack them in a nice format and send
 # them of to the perfmon
 gen = SysReporter()
-gen.start()
+
+# use curses' wrapper method to wrap it safely
+wrapper(gen.start)
 
