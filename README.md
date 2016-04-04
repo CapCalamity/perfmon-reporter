@@ -12,7 +12,7 @@ To install and run this script follow these steps:
 
     `git clone https://bitbucket.org/CapCalamity/perfmon-reporter`
 
-  - install the dependencies
+  - install the dependencies with [pip](https://pip.pypa.io/en/stable/installing)
 
     `pip install psutils`
 
