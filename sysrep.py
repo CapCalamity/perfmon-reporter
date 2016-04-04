@@ -41,8 +41,8 @@ class SysReporter:
                 diff = end - start
 
                 sleep_duration = 0.0
-                if(diff.total_seconds() < 1.0):
-                    sleep_duration = 1.0 - diff.total_seconds()
+                if(diff.total_seconds() < self.interval):
+                    sleep_duration = self.interval - diff.total_seconds()
 
                 if not self.quiet:        
                     self.window.erase()
@@ -143,8 +143,11 @@ class SysReporter:
         
 parser = argparse.ArgumentParser()
 parser.add_argument('host', help='address to the perfmon site')
-parser.add_argument('-i', '--interval', help='interval in seconds at which the system information is reported')
-parser.add_argument('-q', '--quiet', help='do not generate output', action='store_true')
+parser.add_argument('-i', '--interval', help='interval in seconds at which the system information is reported', 
+        type=float,
+        default=1.0)
+parser.add_argument('-q', '--quiet', help='do not generate output', 
+        action='store_true')
 
 args = parser.parse_args()
 gen = SysReporter(args)
