@@ -1,5 +1,7 @@
 #!/usr/bin/python3.4
 
+import sys
+import argparse
 import curses
 import json
 import psutil
@@ -13,15 +15,22 @@ from datetime import datetime
 import time
 
 class SysReporter:
-    def __init__(self):
+    def __init__(self, args):
         self.prev_info = {}
         self.stdsceen = None
         self.window = None
 
-    def start(self, stdscreen):
+        self.host = args.host
+        self.interval = args.interval
+        self.quiet = args.quiet
+
+    def start(self, stdscreen=None):
         self.run = True
-        self.screen = stdscreen
-        self.window = curses.newwin(10, curses.COLS - 1)
+
+        if not self.quiet and stdscreen:
+            self.screen = stdscreen
+            self.window = curses.newwin(10, curses.COLS - 1)
+
         self.send_system_info()
 
         try:
@@ -34,15 +43,16 @@ class SysReporter:
                 sleep_duration = 0.0
                 if(diff.total_seconds() < 1.0):
                     sleep_duration = 1.0 - diff.total_seconds()
-                
-                self.window.erase()
 
-                self.window.addstr(0, 0, '{}'.format(datetime.now()))
-                self.window.addstr(1, 0, '{} - {}'.format(response.status_code, response.reason))
-                self.window.addstr(2, 0, '{}'.format(response.text))
-                self.window.addstr(3, 0, '{}'.format(sleep_duration))
+                if not self.quiet:        
+                    self.window.erase()
 
-                self.window.refresh()
+                    self.window.addstr(0, 0, '{}'.format(datetime.now()))
+                    self.window.addstr(1, 0, '{} - {}'.format(response.status_code, response.reason))
+                    self.window.addstr(2, 0, '{}'.format(response.text))
+                    self.window.addstr(3, 0, '{}'.format(sleep_duration))
+
+                    self.window.refresh()
 
                 time.sleep(sleep_duration)
         except Exception as exception:
@@ -124,31 +134,38 @@ class SysReporter:
         
         headers = { 'Content-Type': 'application/x-www-form-urlencoded' }
            
-        return requests.post('http://localhost:8000/record', data=urllib.parse.urlencode(data), headers=headers)
+        return requests.post('{}/record'.format(self.host), data=urllib.parse.urlencode(data), headers=headers)
 
 # program start
 
 # gather system information with psutils, pack them in a nice format and send
 # them of to the perfmon
-gen = SysReporter()
+        
+parser = argparse.ArgumentParser()
+parser.add_argument('host', help='address to the perfmon site')
+parser.add_argument('-i', '--interval', help='interval in seconds at which the system information is reported')
+parser.add_argument('-q', '--quiet', help='do not generate output', action='store_true')
 
-stdscreen = curses.initscr()
+args = parser.parse_args()
+gen = SysReporter(args)
+
+if not args.quiet:
+    stdscreen = curses.initscr()
 
 try:
-    curses.noecho()
-    curses.cbreak()
-    stdscreen.keypad(True)
-    gen.start(stdscreen)
-
+    if not args.quiet:
+        curses.noecho()
+        curses.cbreak()
+        stdscreen.keypad(True)
+        gen.start(stdscreen)
+    else:
+        gen.start()
 except:
-    print('excepting')
-    curses.echo()
-    curses.nocbreak()
-    stdscreen.keypad(False)
-    curses.endwin()
+    if not args.quiet:
+        curses.echo()
+        curses.nocbreak()
+        stdscreen.keypad(False)
+        curses.endwin()
 
     sys.exit()
-
-# use curses' wrapper method to wrap it safely
-# curses.wrapper(gen.start)
 
