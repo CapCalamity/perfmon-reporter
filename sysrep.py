@@ -1,5 +1,6 @@
 #!/usr/bin/python3.4
 
+import curses
 import json
 import psutil
 import requests
@@ -8,16 +9,45 @@ import urllib.parse
 import threading
 from subprocess import call
 from os import path
-from curses import wrapper
+from datetime import datetime
+import time
 
 class SysReporter:
     def __init__(self):
         self.prev_info = {}
         self.stdsceen = None
+        self.window = None
 
     def start(self, stdscreen):
+        self.run = True
         self.screen = stdscreen
+        self.window = curses.newwin(10, curses.COLS - 1)
         self.send_system_info()
+
+        try:
+            while self.run:
+                start = datetime.now()
+                response = self.send_system_info()
+                end = datetime.now()
+                diff = end - start
+
+                sleep_duration = 0.0
+                if(diff.total_seconds() < 1.0):
+                    sleep_duration = 1.0 - diff.total_seconds()
+                
+                self.window.erase()
+
+                self.window.addstr(0, 0, '{}'.format(datetime.now()))
+                self.window.addstr(1, 0, '{} - {}'.format(response.status_code, response.reason))
+                self.window.addstr(2, 0, '{}'.format(response.text))
+                self.window.addstr(3, 0, '{}'.format(sleep_duration))
+
+                self.window.refresh()
+
+                time.sleep(sleep_duration)
+        except Exception as exception:
+            print('Exception encountered: {}'.format(exception))
+            return
 
     def gather_system_info(self):
         disk_partitions = psutil.disk_partitions()
@@ -76,33 +106,25 @@ class SysReporter:
         return temp
   
     def send_system_info(self):
-        try:
-            # schedule the next interval immediately
-            threading.Timer(1.0, self.send_system_info).start()
-    
-            uuid_file = '.perfmon_id'
-            uuid = ''
-            if not path.isfile(uuid_file):
-                call(['cat', '/proc/sys/kernel/random/uuid > ' + uuid_file])
+        uuid_file = '.perfmon_id'
+        uuid = ''
+        if not path.isfile(uuid_file):
+            call(['cat', '/proc/sys/kernel/random/uuid > ' + uuid_file])
           
-            if path.isfile(uuid_file):
-                with open(uuid_file, 'r') as file:
-                    uuid = file.read().strip()
-            else:
-                return
-          
-            data = {
-                'info': json.dumps(self.gather_system_info()),
-                'uuid': uuid
-            }
-          
-            headers = { 'Content-Type': 'application/x-www-form-urlencoded' }
-            
-            r = requests.post('http://localhost:8000/record', data=urllib.parse.urlencode(data), headers=headers)
-            if r.status_code != 200:
-                print(r.status_code, r.reason, r.text)
-        except:
-            sys.exit()
+        if path.isfile(uuid_file):
+            with open(uuid_file, 'r') as file:
+                uuid = file.read().strip()
+        else:
+            return
+         
+        data = {
+            'info': json.dumps(self.gather_system_info()),
+            'uuid': uuid
+        }
+        
+        headers = { 'Content-Type': 'application/x-www-form-urlencoded' }
+           
+        return requests.post('http://localhost:8000/record', data=urllib.parse.urlencode(data), headers=headers)
 
 # program start
 
@@ -110,6 +132,23 @@ class SysReporter:
 # them of to the perfmon
 gen = SysReporter()
 
+stdscreen = curses.initscr()
+
+try:
+    curses.noecho()
+    curses.cbreak()
+    stdscreen.keypad(True)
+    gen.start(stdscreen)
+
+except:
+    print('excepting')
+    curses.echo()
+    curses.nocbreak()
+    stdscreen.keypad(False)
+    curses.endwin()
+
+    sys.exit()
+
 # use curses' wrapper method to wrap it safely
-wrapper(gen.start)
+# curses.wrapper(gen.start)
 
