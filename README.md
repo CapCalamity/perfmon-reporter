@@ -14,7 +14,7 @@ To install and run this script follow these steps:
 
   - install the dependencies with [pip](https://pip.pypa.io/en/stable/installing)
 
-    `pip install psutils`
+    `pip install psutil`
 
   - run the script
 
