@@ -10,12 +10,16 @@ To install and run this script follow these steps:
 
   - clone the repository 
 
-    `git clone https://bitbucket.org/CapCalamity/perfmon-reporter`
+
+    git clone https://github.com/CapCalamity/perfmon-reporter
 
   - install the dependencies with [pip](https://pip.pypa.io/en/stable/installing)
 
-    `pip install psutil`
+
+    
+    pip install psutil
 
   - run the script
 
-    `./sysrep.py`
+    
+    ./sysrep.py
